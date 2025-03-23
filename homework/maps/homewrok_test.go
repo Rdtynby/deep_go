@@ -9,36 +9,130 @@ import (
 
 // go test -v homework_test.go
 
-type OrderedMap struct {
-	// need to implement
+type Number interface {
+	int8 | int16 | int32 | int64
 }
 
-func NewOrderedMap() OrderedMap {
-	return OrderedMap{} // need to implement
+type OrderedMap[T Number] struct {
+	key   T
+	value T
+	size  int
+	left  *OrderedMap[T]
+	right *OrderedMap[T]
 }
 
-func (m *OrderedMap) Insert(key, value int) {
-	// need to implement
+func NewOrderedMap[T Number]() OrderedMap[T] {
+	return OrderedMap[T]{}
 }
 
-func (m *OrderedMap) Erase(key int) {
-	// need to implement
+func (m *OrderedMap[T]) Insert(key T, value T) {
+	m.size++
+
+	if m.key == 0 {
+		m.key = key
+		m.value = value
+	} else {
+		newNode := OrderedMap[T]{key: key, value: value}
+		parent := (*OrderedMap[T])(nil)
+
+		for m != nil {
+			parent = m
+
+			if m.key > key {
+				m = m.left
+			} else if m.key < key {
+				m = m.right
+			}
+		}
+
+		if parent.key > key {
+			parent.left = &newNode
+		} else {
+			parent.right = &newNode
+		}
+	}
 }
 
-func (m *OrderedMap) Contains(key int) bool {
-	return false // need to implement
+func (m *OrderedMap[T]) Erase(key T) {
+	parent := (*OrderedMap[T])(nil)
+	m.size--
+
+	for m != nil {
+		if m.key == key {
+			break
+		}
+
+		parent = m
+
+		if m.key > key {
+			m = m.left
+		} else if m.key < key {
+			m = m.right
+		}
+	}
+
+	if m.right == nil {
+		if parent.key < m.key {
+			parent.right = m.left
+		} else {
+			parent.left = m.left
+		}
+	} else {
+		minimum := m.right
+		parent = nil
+
+		for minimum.left != nil {
+			parent = minimum
+			minimum = minimum.left
+		}
+
+		if parent != nil {
+			parent.left = minimum.right
+		} else {
+			m.right = minimum.right
+		}
+
+		m.key = minimum.key
+		m.value = minimum.value
+	}
 }
 
-func (m *OrderedMap) Size() int {
-	return 0 // need to implement
+func (m *OrderedMap[T]) Contains(key T) bool {
+	if m.key == key {
+		return true
+	}
+
+	for m != nil {
+		if m.key > key {
+			m = m.left
+		} else if m.key < key {
+			m = m.right
+		} else {
+			return true
+		}
+	}
+
+	return false
 }
 
-func (m *OrderedMap) ForEach(action func(int, int)) {
-	// need to implement
+func (m *OrderedMap[T]) Size() int {
+	return m.size
+}
+
+func (m *OrderedMap[T]) ForEach(action func(T, T)) {
+	if m.left != nil {
+		m.left.ForEach(action)
+	}
+
+	action(m.key, m.value)
+
+	if m.right != nil {
+		m.right.ForEach(action)
+	}
 }
 
 func TestCircularQueue(t *testing.T) {
-	data := NewOrderedMap()
+	data := NewOrderedMap[int64]()
 	assert.Zero(t, data.Size())
 
 	data.Insert(10, 10)
@@ -55,9 +149,9 @@ func TestCircularQueue(t *testing.T) {
 	assert.False(t, data.Contains(3))
 	assert.False(t, data.Contains(13))
 
-	var keys []int
-	expectedKeys := []int{2, 4, 5, 10, 12, 14, 15}
-	data.ForEach(func(key, _ int) {
+	var keys []int64
+	expectedKeys := []int64{2, 4, 5, 10, 12, 14, 15}
+	data.ForEach(func(key, _ int64) {
 		keys = append(keys, key)
 	})
 
@@ -74,8 +168,8 @@ func TestCircularQueue(t *testing.T) {
 	assert.False(t, data.Contains(14))
 
 	keys = nil
-	expectedKeys = []int{4, 5, 10, 12}
-	data.ForEach(func(key, _ int) {
+	expectedKeys = []int64{4, 5, 10, 12}
+	data.ForEach(func(key, _ int64) {
 		keys = append(keys, key)
 	})
 
