@@ -32,11 +32,6 @@ func (q *CircularQueue[T]) Push(value T) bool {
 		return false
 	}
 
-	if q.size == 0 {
-		q.begin = 0
-		q.end = 0
-	}
-
 	q.values[q.end] = value
 	q.end = (q.end + 1) % len(q.values)
 	q.size++
@@ -76,7 +71,7 @@ func (q *CircularQueue[T]) Empty() bool {
 }
 
 func (q *CircularQueue[T]) Full() bool {
-	return q.size > 0 && q.begin == q.end
+	return q.size == len(q.values)
 }
 
 func TestCircularQueueInt64(t *testing.T) {
