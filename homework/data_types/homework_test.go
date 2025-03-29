@@ -50,28 +50,17 @@ type Number interface {
 	uint8 | uint16 | uint32 | uint64
 }
 
-func ToLittleEndianGeneric[T Number](number T) T {
-	switch any(number).(type) {
-	case uint16:
-		part1 := uint8(number << 8 >> 8)
-		part2 := uint8(number >> 8)
-
-		return T(ToLittleEndianGeneric(part1))<<8 + T(ToLittleEndianGeneric(part2))
-
-	case uint32:
-		part1 := uint16(number << 16 >> 16)
-		part2 := uint16(number >> 16)
-
-		return T(ToLittleEndianGeneric(part1))<<16 + T(ToLittleEndianGeneric(part2))
-
-	case uint64:
-		part1 := uint32(number << 32 >> 32)
-		part2 := uint32(number >> 32)
-
-		return T(ToLittleEndianGeneric(part1))<<32 + T(ToLittleEndianGeneric(part2))
+func ToLittleEndianGeneric[T Number](number T, lenInBytes int) T {
+	if lenInBytes == 1 {
+		return number
 	}
 
-	return number
+	lenInBytes /= 2
+	shift := lenInBytes * 8
+	part1 := ((1<<shift - 1) & number << shift) >> shift
+	part2 := number >> shift
+
+	return ToLittleEndianGeneric[T](part1, lenInBytes)<<shift + ToLittleEndianGeneric[T](part2, lenInBytes)
 }
 
 func TestConversionGeneric(t *testing.T) {
@@ -103,7 +92,7 @@ func TestConversionGeneric(t *testing.T) {
 
 	for name, test := range tests64 {
 		t.Run(name, func(t *testing.T) {
-			result := ToLittleEndianGeneric(test.number)
+			result := ToLittleEndianGeneric(test.number, 8)
 			assert.Equal(t, test.result, result)
 		})
 	}
@@ -136,7 +125,7 @@ func TestConversionGeneric(t *testing.T) {
 
 	for name, test := range tests32 {
 		t.Run(name, func(t *testing.T) {
-			result := ToLittleEndianGeneric(test.number)
+			result := ToLittleEndianGeneric(test.number, 4)
 			assert.Equal(t, test.result, result)
 		})
 	}
@@ -165,7 +154,7 @@ func TestConversionGeneric(t *testing.T) {
 
 	for name, test := range tests16 {
 		t.Run(name, func(t *testing.T) {
-			result := ToLittleEndianGeneric(test.number)
+			result := ToLittleEndianGeneric(test.number, 2)
 			assert.Equal(t, test.result, result)
 		})
 	}
@@ -186,7 +175,7 @@ func TestConversionGeneric(t *testing.T) {
 
 	for name, test := range tests8 {
 		t.Run(name, func(t *testing.T) {
-			result := ToLittleEndianGeneric(test.number)
+			result := ToLittleEndianGeneric(test.number, 1)
 			assert.Equal(t, test.result, result)
 		})
 	}
