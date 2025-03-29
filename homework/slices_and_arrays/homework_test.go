@@ -28,7 +28,7 @@ func NewCircularQueue[T Number](capacity int) CircularQueue[T] {
 }
 
 func (q *CircularQueue[T]) Push(value T) bool {
-	if q.size > 0 && q.begin == q.end {
+	if q.size == len(q.values) {
 		return false
 	}
 
