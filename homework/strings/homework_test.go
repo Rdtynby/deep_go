@@ -20,6 +20,7 @@ func NewCOWBuffer(data []byte) COWBuffer {
 		data: data,
 		refs: new(int),
 	}
+	*buffer.refs = 1
 	runtime.SetFinalizer(&buffer, func(buffer *COWBuffer) {
 		buffer.Close()
 	})
@@ -34,26 +35,19 @@ func (b *COWBuffer) Clone() COWBuffer {
 }
 
 func (b *COWBuffer) Close() {
-	if *b.refs > 0 {
+	if *b.refs > 1 {
 		*b.refs--
 	}
 }
 
 func (b *COWBuffer) Update(index int, value byte) bool {
-	if index < 0 {
+	if index < 0 || index >= len(b.data) {
 		return false
 	}
 
-	if index >= len(b.data) {
-		return false
-	}
-
-	if *b.refs > 0 {
+	if *b.refs > 1 {
 		*b.refs--
-		*b = COWBuffer{
-			data: slices.Clone(b.data),
-			refs: new(int),
-		}
+		*b = NewCOWBuffer(slices.Clone(b.data))
 	}
 
 	b.data[index] = value
