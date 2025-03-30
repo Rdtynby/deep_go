@@ -12,79 +12,81 @@ type Option func(*GamePerson)
 
 func WithName(name string) func(*GamePerson) {
 	return func(person *GamePerson) {
-		// need to implement
+		copy(person.nameLevelHouseGunFamilyType[0:42], name)
 	}
 }
 
 func WithCoordinates(x, y, z int) func(*GamePerson) {
 	return func(person *GamePerson) {
-		// need to implement
+		person.x = int32(x)
+		person.y = int32(y)
+		person.z = int32(z)
 	}
 }
 
 func WithGold(gold int) func(*GamePerson) {
 	return func(person *GamePerson) {
-		// need to implement
+		person.gold = int32(gold)
 	}
 }
 
 func WithMana(mana int) func(*GamePerson) {
 	return func(person *GamePerson) {
-		// need to implement
+		person.manaHealthRespectStrengthExperience = setBitsToInt(person.manaHealthRespectStrengthExperience, uint32(mana), 0, 10)
 	}
 }
 
 func WithHealth(health int) func(*GamePerson) {
 	return func(person *GamePerson) {
-		// need to implement
+		person.manaHealthRespectStrengthExperience = setBitsToInt(person.manaHealthRespectStrengthExperience, uint32(health), 10, 10)
 	}
 }
 
 func WithRespect(respect int) func(*GamePerson) {
 	return func(person *GamePerson) {
-		// need to implement
+		person.manaHealthRespectStrengthExperience = setBitsToInt(person.manaHealthRespectStrengthExperience, uint32(respect), 20, 4)
 	}
 }
 
 func WithStrength(strength int) func(*GamePerson) {
 	return func(person *GamePerson) {
-		// need to implement
+		person.manaHealthRespectStrengthExperience = setBitsToInt(person.manaHealthRespectStrengthExperience, uint32(strength), 24, 4)
 	}
 }
 
 func WithExperience(experience int) func(*GamePerson) {
 	return func(person *GamePerson) {
-		// need to implement
+		person.manaHealthRespectStrengthExperience = setBitsToInt(person.manaHealthRespectStrengthExperience, uint32(experience), 28, 4)
 	}
 }
 
 func WithLevel(level int) func(*GamePerson) {
 	return func(person *GamePerson) {
-		// need to implement
+		person.nameLevelHouseGunFamilyType[42] = uint8(level)
 	}
 }
 
 func WithHouse() func(*GamePerson) {
 	return func(person *GamePerson) {
-		// need to implement
+		person.nameLevelHouseGunFamilyType[43] = setBitsToInt(person.nameLevelHouseGunFamilyType[43], 1, 0, 1)
 	}
 }
 
 func WithGun() func(*GamePerson) {
 	return func(person *GamePerson) {
-		// need to implement
+		person.nameLevelHouseGunFamilyType[43] = setBitsToInt(person.nameLevelHouseGunFamilyType[43], 1, 1, 1)
 	}
 }
 
 func WithFamily() func(*GamePerson) {
 	return func(person *GamePerson) {
-		// need to implement
+		person.nameLevelHouseGunFamilyType[43] = setBitsToInt(person.nameLevelHouseGunFamilyType[43], 1, 2, 1)
 	}
 }
 
 func WithType(personType int) func(*GamePerson) {
 	return func(person *GamePerson) {
-		// need to implement
+		person.nameLevelHouseGunFamilyType[43] = setBitsToInt(person.nameLevelHouseGunFamilyType[43], uint8(personType), 3, 2)
 	}
 }
 
@@ -94,102 +96,111 @@ const (
 	WarriorGamePersonType
 )
 
+type Number interface {
+	uint8 | uint32
+}
+
 type GamePerson struct {
-	// need to implement
+	x                                   int32
+	y                                   int32
+	z                                   int32
+	gold                                int32
+	manaHealthRespectStrengthExperience uint32
+	nameLevelHouseGunFamilyType         [44]uint8
+}
+
+func getBitsFromInt[T Number](value T, start int, length int) T {
+	mask := T(1<<length - 1)
+	return value >> start & mask
+}
+
+func setBitsToInt[T Number](value T, bits T, start int, length int) T {
+	mask := T(1<<length-1) << start
+	return value & ^mask | bits<<start
 }
 
 func NewGamePerson(options ...Option) GamePerson {
-	// need to implement
-	return GamePerson{}
+	person := GamePerson{}
+
+	for _, option := range options {
+		option(&person)
+	}
+
+	return person
 }
 
 func (p *GamePerson) Name() string {
-	// need to implement
-	return ""
+	return string(p.nameLevelHouseGunFamilyType[0:42])
 }
 
 func (p *GamePerson) X() int {
-	// need to implement
-	return 0
+	return int(p.x)
 }
 
 func (p *GamePerson) Y() int {
-	// need to implement
-	return 0
+	return int(p.y)
 }
 
 func (p *GamePerson) Z() int {
-	// need to implement
-	return 0
+	return int(p.z)
 }
 
 func (p *GamePerson) Gold() int {
-	// need to implement
-	return 0
+	return int(p.gold)
 }
 
 func (p *GamePerson) Mana() int {
-	// need to implement
-	return 0
+	return int(getBitsFromInt(p.manaHealthRespectStrengthExperience, 0, 10))
 }
 
 func (p *GamePerson) Health() int {
-	// need to implement
-	return 0
+	return int(getBitsFromInt(p.manaHealthRespectStrengthExperience, 10, 10))
 }
 
 func (p *GamePerson) Respect() int {
-	// need to implement
-	return 0
+	return int(getBitsFromInt(p.manaHealthRespectStrengthExperience, 20, 4))
 }
 
 func (p *GamePerson) Strength() int {
-	// need to implement
-	return 0
+	return int(getBitsFromInt(p.manaHealthRespectStrengthExperience, 24, 4))
 }
 
 func (p *GamePerson) Experience() int {
-	// need to implement
-	return 0
+	return int(getBitsFromInt(p.manaHealthRespectStrengthExperience, 28, 4))
 }
 
 func (p *GamePerson) Level() int {
-	// need to implement
-	return 0
+	return int(p.nameLevelHouseGunFamilyType[42])
 }
 
 func (p *GamePerson) HasHouse() bool {
-	// need to implement
-	return false
+	return getBitsFromInt(p.nameLevelHouseGunFamilyType[43], 0, 1) > 0
 }
 
 func (p *GamePerson) HasGun() bool {
-	// need to implement
-	return false
+	return getBitsFromInt(p.nameLevelHouseGunFamilyType[43], 1, 1) > 0
 }
 
-func (p *GamePerson) HasFamilty() bool {
-	// need to implement
-	return false
+func (p *GamePerson) HasFamily() bool {
+	return getBitsFromInt(p.nameLevelHouseGunFamilyType[43], 2, 1) > 0
 }
 
 func (p *GamePerson) Type() int {
-	// need to implement
-	return 0
+	return int(getBitsFromInt(p.nameLevelHouseGunFamilyType[43], 3, 2))
 }
 
 func TestGamePerson(t *testing.T) {
 	assert.LessOrEqual(t, unsafe.Sizeof(GamePerson{}), uintptr(64))
 
-	const x, y, z = math.MinInt32, math.MaxInt32, 0
+	const x, y, z = math.MinInt32, math.MaxInt32 - 1, 0
 	const name = "aaaaaaaaaaaaa_bbbbbbbbbbbbb_cccccccccccccc"
 	const personType = BuilderGamePersonType
 	const gold = math.MaxInt32
-	const mana = 1000
+	const mana = 999
 	const health = 1000
-	const respect = 10
-	const strength = 10
-	const experience = 10
+	const respect = 7
+	const strength = 8
+	const experience = 9
 	const level = 10
 
 	options := []Option{
@@ -220,7 +231,7 @@ func TestGamePerson(t *testing.T) {
 	assert.Equal(t, experience, person.Experience())
 	assert.Equal(t, level, person.Level())
 	assert.True(t, person.HasHouse())
-	assert.True(t, person.HasFamilty())
+	assert.True(t, person.HasFamily())
 	assert.False(t, person.HasGun())
 	assert.Equal(t, personType, person.Type())
 }
