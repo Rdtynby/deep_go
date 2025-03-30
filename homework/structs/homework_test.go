@@ -191,22 +191,38 @@ func (p *GamePerson) Type() int {
 }
 
 func (p *GamePerson) MarshalJSON() ([]byte, error) {
-	return json.Marshal(map[string]interface{}{
-		"name":       p.Name(),
-		"x":          p.X(),
-		"y":          p.Y(),
-		"z":          p.Z(),
-		"gold":       p.Gold(),
-		"mana":       p.Mana(),
-		"health":     p.Health(),
-		"respect":    p.Respect(),
-		"strength":   p.Strength(),
-		"experience": p.Experience(),
-		"level":      p.Level(),
-		"hasHouse":   p.HasHouse(),
-		"hasGun":     p.HasGun(),
-		"hasFamily":  p.HasFamily(),
-		"type":       p.Type(),
+	return json.Marshal(struct {
+		Name       string `json:"name"`
+		X          int    `json:"x"`
+		Y          int    `json:"y"`
+		Z          int    `json:"z"`
+		Gold       int    `json:"gold"`
+		Mana       int    `json:"mana"`
+		Health     int    `json:"health"`
+		Respect    int    `json:"respect"`
+		Strength   int    `json:"strength"`
+		Experience int    `json:"experience"`
+		Level      int    `json:"level"`
+		HasHouse   bool   `json:"hasHouse"`
+		HasGun     bool   `json:"hasGun"`
+		HasFamily  bool   `json:"hasFamily"`
+		PersonType int    `json:"type"`
+	}{
+		Name:       p.Name(),
+		X:          p.X(),
+		Y:          p.Y(),
+		Z:          p.Z(),
+		Gold:       p.Gold(),
+		Mana:       p.Mana(),
+		Health:     p.Health(),
+		Respect:    p.Respect(),
+		Strength:   p.Strength(),
+		Experience: p.Experience(),
+		Level:      p.Level(),
+		HasHouse:   p.HasHouse(),
+		HasGun:     p.HasGun(),
+		HasFamily:  p.HasFamily(),
+		PersonType: p.Type(),
 	})
 }
 
@@ -256,7 +272,7 @@ func TestGamePerson(t *testing.T) {
 	assert.False(t, person.HasGun())
 	assert.Equal(t, personType, person.Type())
 
-	expectedSserializedPerson := "{\"experience\":9,\"gold\":2147483647,\"hasFamily\":true,\"hasGun\":false,\"hasHouse\":true,\"health\":1000,\"level\":10,\"mana\":999,\"name\":\"aaaaaaaaaaaaa_bbbbbbbbbbbbb_cccccccccccccc\",\"respect\":7,\"strength\":8,\"type\":0,\"x\":-2147483648,\"y\":2147483646,\"z\":0}"
+	expectedSserializedPerson := "{\"name\":\"aaaaaaaaaaaaa_bbbbbbbbbbbbb_cccccccccccccc\",\"x\":-2147483648,\"y\":2147483646,\"z\":0,\"gold\":2147483647,\"mana\":999,\"health\":1000,\"respect\":7,\"strength\":8,\"experience\":9,\"level\":10,\"hasHouse\":true,\"hasGun\":false,\"hasFamily\":true,\"type\":0}"
 	serializedPerson, _ := json.Marshal(&person)
 	assert.Equal(t, expectedSserializedPerson, string(serializedPerson))
 }
