@@ -13,122 +13,111 @@ type Number interface {
 	int8 | int16 | int32 | int64
 }
 
-type OrderedMap[T Number] struct {
+type Node[T Number] struct {
 	key   T
 	value T
-	size  int
-	left  *OrderedMap[T]
-	right *OrderedMap[T]
+	left  *Node[T]
+	right *Node[T]
+}
+
+type OrderedMap[T Number] struct {
+	size int
+	root *Node[T]
 }
 
 func NewOrderedMap[T Number]() OrderedMap[T] {
 	return OrderedMap[T]{}
 }
 
+func InsertNode[T Number](root **Node[T], newNode *Node[T]) {
+	if *root == nil {
+		*root = newNode
+	} else if (*root).key > newNode.key {
+		InsertNode(&(*root).left, newNode)
+	} else {
+		InsertNode(&(*root).right, newNode)
+	}
+}
+
 func (m *OrderedMap[T]) Insert(key T, value T) {
 	m.size++
 
-	if m.key == 0 {
-		m.key = key
-		m.value = value
+	InsertNode(&m.root, &Node[T]{key: key, value: value})
+}
+
+func (root *Node[T]) FindMinChild() *Node[T] {
+	if root == nil {
+		return nil
+	} else if root.left == nil {
+		return root
 	} else {
-		newNode := OrderedMap[T]{key: key, value: value}
-		parent := (*OrderedMap[T])(nil)
+		return root.left.FindMinChild()
+	}
+}
 
-		for m != nil {
-			parent = m
+func EraseNode[T Number](root **Node[T], key T) {
+	if *root == nil {
+		return
+	}
 
-			if m.key > key {
-				m = m.left
-			} else if m.key < key {
-				m = m.right
-			}
-		}
-
-		if parent.key > key {
-			parent.left = &newNode
+	if (*root).key == key {
+		if (*root).left == nil {
+			*root = (*root).right
+		} else if (*root).right == nil {
+			*root = (*root).left
 		} else {
-			parent.right = &newNode
+			minChild := (*root).right.FindMinChild()
+			(*root).value = minChild.value
+			(*root).key = minChild.key
+			EraseNode(&minChild.right, minChild.key)
 		}
+	} else if (*root).key > key {
+		EraseNode(&(*root).left, key)
+	} else {
+		EraseNode(&(*root).right, key)
 	}
 }
 
 func (m *OrderedMap[T]) Erase(key T) {
-	parent := (*OrderedMap[T])(nil)
 	m.size--
 
-	for m != nil {
-		if m.key == key {
-			break
-		}
+	EraseNode(&m.root, key)
+}
 
-		parent = m
-
-		if m.key > key {
-			m = m.left
-		} else if m.key < key {
-			m = m.right
-		}
+func (root *Node[T]) ContainsNode(key T) bool {
+	if root == nil {
+		return false
 	}
 
-	if m.right == nil {
-		if parent.key < m.key {
-			parent.right = m.left
-		} else {
-			parent.left = m.left
-		}
+	if (*root).key > key {
+		return (*root).left.ContainsNode(key)
+	} else if (*root).key < key {
+		return (*root).right.ContainsNode(key)
 	} else {
-		minimum := m.right
-		parent = nil
-
-		for minimum.left != nil {
-			parent = minimum
-			minimum = minimum.left
-		}
-
-		if parent != nil {
-			parent.left = minimum.right
-		} else {
-			m.right = minimum.right
-		}
-
-		m.key = minimum.key
-		m.value = minimum.value
+		return true
 	}
 }
 
 func (m *OrderedMap[T]) Contains(key T) bool {
-	if m.key == key {
-		return true
-	}
-
-	for m != nil {
-		if m.key > key {
-			m = m.left
-		} else if m.key < key {
-			m = m.right
-		} else {
-			return true
-		}
-	}
-
-	return false
+	return m.root.ContainsNode(key)
 }
 
 func (m *OrderedMap[T]) Size() int {
 	return m.size
 }
 
+func (root *Node[T]) ForEachNode(action func(T, T)) {
+	if root == nil {
+		return
+	}
+
+	root.left.ForEachNode(action)
+	action(root.key, root.value)
+	root.right.ForEachNode(action)
+}
+
 func (m *OrderedMap[T]) ForEach(action func(T, T)) {
-	if m.left != nil {
-		m.left.ForEach(action)
-	}
-
-	action(m.key, m.value)
-
-	if m.right != nil {
-		m.right.ForEach(action)
-	}
+	m.root.ForEachNode(action)
 }
 
 func TestCircularQueue(t *testing.T) {
