@@ -1,6 +1,7 @@
 package main
 
 import (
+	"encoding/json"
 	"math"
 	"testing"
 	"unsafe"
@@ -189,6 +190,26 @@ func (p *GamePerson) Type() int {
 	return int(getBitsFromInt(p.nameLevelHouseGunFamilyType[43], 3, 2))
 }
 
+func (p *GamePerson) MarshalJSON() ([]byte, error) {
+	return json.Marshal(map[string]interface{}{
+		"name":       p.Name(),
+		"x":          p.X(),
+		"y":          p.Y(),
+		"z":          p.Z(),
+		"gold":       p.Gold(),
+		"mana":       p.Mana(),
+		"health":     p.Health(),
+		"respect":    p.Respect(),
+		"strength":   p.Strength(),
+		"experience": p.Experience(),
+		"level":      p.Level(),
+		"hasHouse":   p.HasHouse(),
+		"hasGun":     p.HasGun(),
+		"hasFamily":  p.HasFamily(),
+		"type":       p.Type(),
+	})
+}
+
 func TestGamePerson(t *testing.T) {
 	assert.LessOrEqual(t, unsafe.Sizeof(GamePerson{}), uintptr(64))
 
@@ -234,4 +255,8 @@ func TestGamePerson(t *testing.T) {
 	assert.True(t, person.HasFamily())
 	assert.False(t, person.HasGun())
 	assert.Equal(t, personType, person.Type())
+
+	expectedSserializedPerson := "{\"experience\":9,\"gold\":2147483647,\"hasFamily\":true,\"hasGun\":false,\"hasHouse\":true,\"health\":1000,\"level\":10,\"mana\":999,\"name\":\"aaaaaaaaaaaaa_bbbbbbbbbbbbb_cccccccccccccc\",\"respect\":7,\"strength\":8,\"type\":0,\"x\":-2147483648,\"y\":2147483646,\"z\":0}"
+	serializedPerson, _ := json.Marshal(&person)
+	assert.Equal(t, expectedSserializedPerson, string(serializedPerson))
 }
