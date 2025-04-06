@@ -16,6 +16,10 @@ func Map[T Number](data []T, action func(T) T) []T {
 		return nil
 	}
 
+	if len(data) == 0 {
+		return data
+	}
+
 	result := make([]T, len(data))
 
 	for k, v := range data {
@@ -30,7 +34,11 @@ func Filter[T Number](data []T, action func(T) bool) []T {
 		return nil
 	}
 
-	result := make([]T, 0)
+	if len(data) == 0 {
+		return data
+	}
+
+	var result []T
 
 	for _, v := range data {
 		if action(v) {
