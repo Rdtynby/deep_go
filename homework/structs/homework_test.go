@@ -11,6 +11,27 @@ import (
 
 type Option func(*GamePerson)
 
+const (
+	ManaStart        = 0
+	ManaLength       = 10
+	HealthStart      = ManaStart + ManaLength
+	HealthLength     = 10
+	RespectStart     = HealthStart + HealthLength
+	RespectLength    = 4
+	StrengthStart    = RespectStart + RespectLength
+	StrengthLength   = 4
+	ExperienceStart  = StrengthStart + StrengthLength
+	ExperienceLength = 4
+	HouseStart       = 0
+	HouseLength      = 1
+	GunStart         = HouseStart + HouseLength
+	GunLength        = 1
+	FamilyStart      = GunStart + GunLength
+	FamilyLength     = 1
+	TypeStart        = FamilyStart + FamilyLength
+	TypeLength       = 2
+)
+
 func WithName(name string) func(*GamePerson) {
 	return func(person *GamePerson) {
 		copy(person.nameLevelHouseGunFamilyType[0:42], name)
@@ -33,31 +54,31 @@ func WithGold(gold int) func(*GamePerson) {
 
 func WithMana(mana int) func(*GamePerson) {
 	return func(person *GamePerson) {
-		person.manaHealthRespectStrengthExperience = setBitsToInt(person.manaHealthRespectStrengthExperience, uint32(mana), 0, 10)
+		person.manaHealthRespectStrengthExperience = setBitsToInt(person.manaHealthRespectStrengthExperience, uint32(mana), ManaStart, ManaLength)
 	}
 }
 
 func WithHealth(health int) func(*GamePerson) {
 	return func(person *GamePerson) {
-		person.manaHealthRespectStrengthExperience = setBitsToInt(person.manaHealthRespectStrengthExperience, uint32(health), 10, 10)
+		person.manaHealthRespectStrengthExperience = setBitsToInt(person.manaHealthRespectStrengthExperience, uint32(health), HealthStart, HealthLength)
 	}
 }
 
 func WithRespect(respect int) func(*GamePerson) {
 	return func(person *GamePerson) {
-		person.manaHealthRespectStrengthExperience = setBitsToInt(person.manaHealthRespectStrengthExperience, uint32(respect), 20, 4)
+		person.manaHealthRespectStrengthExperience = setBitsToInt(person.manaHealthRespectStrengthExperience, uint32(respect), RespectStart, RespectLength)
 	}
 }
 
 func WithStrength(strength int) func(*GamePerson) {
 	return func(person *GamePerson) {
-		person.manaHealthRespectStrengthExperience = setBitsToInt(person.manaHealthRespectStrengthExperience, uint32(strength), 24, 4)
+		person.manaHealthRespectStrengthExperience = setBitsToInt(person.manaHealthRespectStrengthExperience, uint32(strength), StrengthStart, StrengthLength)
 	}
 }
 
 func WithExperience(experience int) func(*GamePerson) {
 	return func(person *GamePerson) {
-		person.manaHealthRespectStrengthExperience = setBitsToInt(person.manaHealthRespectStrengthExperience, uint32(experience), 28, 4)
+		person.manaHealthRespectStrengthExperience = setBitsToInt(person.manaHealthRespectStrengthExperience, uint32(experience), ExperienceStart, ExperienceLength)
 	}
 }
 
@@ -69,25 +90,25 @@ func WithLevel(level int) func(*GamePerson) {
 
 func WithHouse() func(*GamePerson) {
 	return func(person *GamePerson) {
-		person.nameLevelHouseGunFamilyType[43] = setBitsToInt(person.nameLevelHouseGunFamilyType[43], 1, 0, 1)
+		person.nameLevelHouseGunFamilyType[43] = setBitsToInt(person.nameLevelHouseGunFamilyType[43], 1, HouseStart, HouseLength)
 	}
 }
 
 func WithGun() func(*GamePerson) {
 	return func(person *GamePerson) {
-		person.nameLevelHouseGunFamilyType[43] = setBitsToInt(person.nameLevelHouseGunFamilyType[43], 1, 1, 1)
+		person.nameLevelHouseGunFamilyType[43] = setBitsToInt(person.nameLevelHouseGunFamilyType[43], 1, GunStart, GunLength)
 	}
 }
 
 func WithFamily() func(*GamePerson) {
 	return func(person *GamePerson) {
-		person.nameLevelHouseGunFamilyType[43] = setBitsToInt(person.nameLevelHouseGunFamilyType[43], 1, 2, 1)
+		person.nameLevelHouseGunFamilyType[43] = setBitsToInt(person.nameLevelHouseGunFamilyType[43], 1, FamilyStart, FamilyLength)
 	}
 }
 
 func WithType(personType int) func(*GamePerson) {
 	return func(person *GamePerson) {
-		person.nameLevelHouseGunFamilyType[43] = setBitsToInt(person.nameLevelHouseGunFamilyType[43], uint8(personType), 3, 2)
+		person.nameLevelHouseGunFamilyType[43] = setBitsToInt(person.nameLevelHouseGunFamilyType[43], uint8(personType), TypeStart, TypeLength)
 	}
 }
 
@@ -97,27 +118,15 @@ const (
 	WarriorGamePersonType
 )
 
-type Number interface {
-	uint8 | uint32
-}
-
 type GamePerson struct {
-	x                                   int32
-	y                                   int32
-	z                                   int32
-	gold                                int32
+	x    int32
+	y    int32
+	z    int32
+	gold int32
+	// bits: 0..9 - mana 10..19 - health 20..23 - respect 24..27 - strength 28..31 - experience
 	manaHealthRespectStrengthExperience uint32
-	nameLevelHouseGunFamilyType         [44]uint8
-}
-
-func getBitsFromInt[T Number](value T, start int, length int) T {
-	mask := T(1<<length - 1)
-	return value >> start & mask
-}
-
-func setBitsToInt[T Number](value T, bits T, start int, length int) T {
-	mask := T(1<<length-1) << start
-	return value & ^mask | bits<<start
+	// bytes: 0..41 - name, 42 - level, 43: bits: 0 - house,1 - gun, 2 - family, 3..4 - type
+	nameLevelHouseGunFamilyType [44]uint8
 }
 
 func NewGamePerson(options ...Option) GamePerson {
