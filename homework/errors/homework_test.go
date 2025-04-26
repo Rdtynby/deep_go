@@ -33,8 +33,10 @@ func Append(err error, errs ...error) *MultiError {
 		e.errors = append(e.errors, errs...)
 
 		return e
-	default:
+	case nil:
 		return &MultiError{errs}
+	default:
+		return &MultiError{append([]error{err}, errs...)}
 	}
 }
 
