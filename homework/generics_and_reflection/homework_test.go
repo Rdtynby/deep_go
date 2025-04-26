@@ -14,7 +14,7 @@ import (
 type Person struct {
 	Name    string `properties:"name"`
 	Address string `properties:"address,omitempty"`
-	Age     int    `properties:"age"`
+	Age     int    `properties:"omitempty,age"`
 	Married bool   `properties:"married"`
 }
 
@@ -24,17 +24,28 @@ func Serialize(person interface{}) string {
 
 	var result []string
 
+outer:
 	for i := 0; i < personType.NumField(); i++ {
 		props := strings.Split(personType.Field(i).Tag.Get("properties"), ",")
 		field := personValue.Field(i)
 
 		isZero := reflect.Zero(field.Type()).Interface() == field.Interface()
 
-		if isZero && len(props) > 1 && props[1] == "omitempty" {
-			continue
+		nameIndex := 0
+
+		for index, prop := range props {
+			if prop == "omitempty" {
+				if isZero {
+					continue outer
+				} else {
+					if index == nameIndex {
+						nameIndex++
+					}
+				}
+			}
 		}
 
-		result = append(result, props[0]+"="+fmt.Sprintf("%v", field.Interface()))
+		result = append(result, props[nameIndex]+"="+fmt.Sprintf("%v", field.Interface()))
 	}
 
 	return strings.Join(result, "\n")
@@ -46,7 +57,7 @@ func TestSerialization(t *testing.T) {
 		result string
 	}{
 		"test case with empty fields": {
-			result: "name=\nage=0\nmarried=false",
+			result: "name=\nmarried=false",
 		},
 		"test case with fields": {
 			person: Person{
