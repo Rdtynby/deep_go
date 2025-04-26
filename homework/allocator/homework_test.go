@@ -22,9 +22,7 @@ func Defragment[T Number](memory []T, pointers []unsafe.Pointer) {
 		if changes[pointer] == nil {
 			changes[pointer] = unsafe.Pointer(&memory[currentPointer])
 
-			tmp := memory[currentPointer]
-			memory[currentPointer] = *(*T)(pointers[index])
-			*(*T)(pointers[index]) = tmp
+			memory[currentPointer], *(*T)(pointers[index]) = *(*T)(pointers[index]), memory[currentPointer]
 
 			currentPointer++
 		}
