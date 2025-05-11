@@ -1,6 +1,9 @@
 package main
 
 import (
+	"fmt"
+	"reflect"
+	"strings"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -11,13 +14,41 @@ import (
 type Person struct {
 	Name    string `properties:"name"`
 	Address string `properties:"address,omitempty"`
-	Age     int    `properties:"age"`
+	Age     int    `properties:"omitempty,age"`
 	Married bool   `properties:"married"`
 }
 
-func Serialize(person Person) string {
-	// need to implement
-	return ""
+func Serialize(person interface{}) string {
+	personType := reflect.TypeOf(person)
+	personValue := reflect.ValueOf(person)
+
+	var result []string
+
+outer:
+	for i := 0; i < personType.NumField(); i++ {
+		props := strings.Split(personType.Field(i).Tag.Get("properties"), ",")
+		field := personValue.Field(i)
+
+		isZero := reflect.Zero(field.Type()).Interface() == field.Interface()
+
+		nameIndex := 0
+
+		for index, prop := range props {
+			if prop == "omitempty" {
+				if isZero {
+					continue outer
+				} else {
+					if index == nameIndex {
+						nameIndex++
+					}
+				}
+			}
+		}
+
+		result = append(result, props[nameIndex]+"="+fmt.Sprintf("%v", field.Interface()))
+	}
+
+	return strings.Join(result, "\n")
 }
 
 func TestSerialization(t *testing.T) {
@@ -26,7 +57,7 @@ func TestSerialization(t *testing.T) {
 		result string
 	}{
 		"test case with empty fields": {
-			result: "name=\nage=0\nmarried=false",
+			result: "name=\nmarried=false",
 		},
 		"test case with fields": {
 			person: Person{
