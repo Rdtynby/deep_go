@@ -13,21 +13,21 @@ import (
 // go test -v homework_test.go
 
 type WorkerPool struct {
-	jobs   chan func()
+	tasks  chan func()
 	wg     sync.WaitGroup
 	closed bool
 }
 
 func NewWorkerPool(workersNumber int) *WorkerPool {
 	wp := &WorkerPool{
-		jobs:   make(chan func(), workersNumber*2),
+		tasks:  make(chan func(), workersNumber*2),
 		closed: false,
 	}
 
 	wp.wg.Add(workersNumber)
 
 	for i := 0; i < workersNumber; i++ {
-		go wp.PerformJobs()
+		go wp.PerformTasks()
 	}
 
 	return wp
@@ -40,10 +40,10 @@ func (wp *WorkerPool) AddTask(task func()) error {
 	}
 
 	select {
-	case wp.jobs <- task:
+	case wp.tasks <- task:
 		return nil
 	default:
-		return fmt.Errorf("job buffer is full")
+		return fmt.Errorf("task buffer is full")
 	}
 }
 
@@ -54,16 +54,16 @@ func (wp *WorkerPool) Shutdown() {
 		return
 	}
 
-	close(wp.jobs)
+	close(wp.tasks)
 	wp.wg.Wait()
 	wp.closed = true
 }
 
-func (wp *WorkerPool) PerformJobs() {
+func (wp *WorkerPool) PerformTasks() {
 	defer wp.wg.Done()
 
-	for job := range wp.jobs {
-		job()
+	for task := range wp.tasks {
+		task()
 	}
 }
 
