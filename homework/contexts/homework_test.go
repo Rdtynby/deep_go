@@ -3,6 +3,7 @@ package main
 import (
 	"context"
 	"errors"
+	"sync"
 	"sync/atomic"
 	"testing"
 	"time"
@@ -11,21 +12,38 @@ import (
 )
 
 type Group struct {
-	// need to implement
+	cancel context.CancelCauseFunc
+	ctx    context.Context
+	wg     sync.WaitGroup
 }
 
 func NewErrGroup(ctx context.Context) (*Group, context.Context) {
-	// need to implement
-	return &Group{}, ctx
+	newCtx, cancel := context.WithCancelCause(ctx)
+
+	return &Group{
+		ctx:    newCtx,
+		cancel: cancel,
+	}, newCtx
 }
 
 func (g *Group) Go(action func() error) {
-	// need to implement
+	g.wg.Add(1)
+
+	go func() {
+		defer g.wg.Done()
+
+		err := action()
+
+		if err != nil {
+			g.cancel(err)
+		}
+	}()
 }
 
 func (g *Group) Wait() error {
-	// need to implement
-	return nil
+	g.wg.Wait()
+
+	return context.Cause(g.ctx)
 }
 
 func TestErrGroupWithoutError(t *testing.T) {
