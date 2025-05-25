@@ -12,9 +12,12 @@ import (
 )
 
 type Group struct {
-	cancel context.CancelCauseFunc
-	ctx    context.Context
-	wg     sync.WaitGroup
+	cancel        context.CancelCauseFunc
+	ctx           context.Context
+	wg            sync.WaitGroup
+	tasks         chan func()
+	workersLimit  int
+	workersNumber int
 }
 
 func NewErrGroup(ctx context.Context) (*Group, context.Context) {
@@ -23,27 +26,44 @@ func NewErrGroup(ctx context.Context) (*Group, context.Context) {
 	return &Group{
 		ctx:    newCtx,
 		cancel: cancel,
+		tasks:  make(chan func(), 100),
 	}, newCtx
 }
 
 func (g *Group) Go(action func() error) {
-	g.wg.Add(1)
-
-	go func() {
-		defer g.wg.Done()
-
+	g.tasks <- func() {
 		err := action()
 
 		if err != nil {
 			g.cancel(err)
 		}
-	}()
+	}
+
+	if g.workersLimit == 0 || g.workersNumber < g.workersLimit {
+		g.workersNumber++
+		g.wg.Add(1)
+
+		go g.PerformTasks()
+	}
 }
 
 func (g *Group) Wait() error {
+	close(g.tasks)
 	g.wg.Wait()
 
 	return context.Cause(g.ctx)
+}
+
+func (g *Group) SetLimit(limit int) {
+	g.workersLimit = limit
+}
+
+func (g *Group) PerformTasks() {
+	defer g.wg.Done()
+
+	for task := range g.tasks {
+		task()
+	}
 }
 
 func TestErrGroupWithoutError(t *testing.T) {
@@ -61,6 +81,7 @@ func TestErrGroupWithoutError(t *testing.T) {
 	err := group.Wait()
 	assert.Equal(t, int32(5), counter.Load())
 	assert.NoError(t, err)
+	assert.Equal(t, 5, group.workersNumber)
 }
 
 func TestErrGroupWithError(t *testing.T) {
@@ -89,4 +110,24 @@ func TestErrGroupWithError(t *testing.T) {
 	err := group.Wait()
 	assert.Equal(t, int32(0), counter.Load())
 	assert.Error(t, err)
+	assert.Equal(t, 6, group.workersNumber)
+}
+
+func TestErrGroupWithoutErrorLimit(t *testing.T) {
+	var counter atomic.Int32
+	group, _ := NewErrGroup(context.Background())
+	group.SetLimit(3)
+
+	for i := 0; i < 5; i++ {
+		group.Go(func() error {
+			time.Sleep(time.Second)
+			counter.Add(1)
+			return nil
+		})
+	}
+
+	err := group.Wait()
+	assert.Equal(t, int32(5), counter.Load())
+	assert.NoError(t, err)
+	assert.Equal(t, 3, group.workersNumber)
 }
