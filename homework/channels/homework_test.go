@@ -1,6 +1,8 @@
 package main
 
 import (
+	"fmt"
+	"sync"
 	"sync/atomic"
 	"testing"
 	"time"
@@ -11,24 +13,58 @@ import (
 // go test -v homework_test.go
 
 type WorkerPool struct {
-	// need to implement
+	jobs   chan func()
+	wg     sync.WaitGroup
+	closed bool
 }
 
 func NewWorkerPool(workersNumber int) *WorkerPool {
-	// need to implement
-	return &WorkerPool{}
+	wp := &WorkerPool{
+		jobs:   make(chan func(), workersNumber*2),
+		closed: false,
+	}
+
+	wp.wg.Add(workersNumber)
+
+	for i := 0; i < workersNumber; i++ {
+		go wp.PerformJobs()
+	}
+
+	return wp
 }
 
 // Return an error if the pool is full
 func (wp *WorkerPool) AddTask(task func()) error {
-	// need to implement
-	return nil
+	if wp.closed {
+		return fmt.Errorf("already closed")
+	}
+
+	select {
+	case wp.jobs <- task:
+		return nil
+	default:
+		return fmt.Errorf("job buffer is full")
+	}
 }
 
 // Shutdown all workers and wait for all
 // tasks in the pool to complete
 func (wp *WorkerPool) Shutdown() {
-	// need to implement
+	if wp.closed {
+		return
+	}
+
+	close(wp.jobs)
+	wp.wg.Wait()
+	wp.closed = true
+}
+
+func (wp *WorkerPool) PerformJobs() {
+	defer wp.wg.Done()
+
+	for job := range wp.jobs {
+		job()
+	}
 }
 
 func TestWorkerPool(t *testing.T) {
@@ -55,4 +91,7 @@ func TestWorkerPool(t *testing.T) {
 	pool.Shutdown() // wait tasks
 
 	assert.Equal(t, int32(6), counter.Load())
+
+	err := pool.AddTask(task)
+	assert.EqualError(t, err, "already closed")
 }
