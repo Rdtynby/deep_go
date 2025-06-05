@@ -12,43 +12,57 @@ import (
 )
 
 type Group struct {
-	cancel        context.CancelCauseFunc
-	ctx           context.Context
-	wg            sync.WaitGroup
-	tasks         chan func()
-	workersLimit  int
-	workersNumber int
+	cancel           context.CancelCauseFunc
+	ctx              context.Context
+	wg               sync.WaitGroup
+	condition        *sync.Cond
+	workersLimit     int
+	workersNumber    int
+	maxWorkersNumber int // Only for tests
 }
 
 func NewErrGroup(ctx context.Context) (*Group, context.Context) {
 	newCtx, cancel := context.WithCancelCause(ctx)
+	mutex := &sync.Mutex{}
 
 	return &Group{
-		ctx:    newCtx,
-		cancel: cancel,
-		tasks:  make(chan func(), 100),
+		ctx:       newCtx,
+		cancel:    cancel,
+		condition: sync.NewCond(mutex),
 	}, newCtx
 }
 
 func (g *Group) Go(action func() error) {
-	g.tasks <- func() {
+	g.condition.L.Lock()
+	defer g.condition.L.Unlock()
+
+	if g.workersLimit > 0 && g.workersNumber >= g.workersLimit {
+		g.condition.Wait()
+	}
+
+	g.workersNumber++
+	g.wg.Add(1)
+
+	go func() {
+		defer func() {
+			if g.workersNumber > g.maxWorkersNumber {
+				g.maxWorkersNumber = g.workersNumber
+			}
+
+			g.workersNumber--
+			g.condition.Signal()
+			g.wg.Done()
+		}()
+
 		err := action()
 
 		if err != nil {
 			g.cancel(err)
 		}
-	}
-
-	if g.workersLimit == 0 || g.workersNumber < g.workersLimit {
-		g.workersNumber++
-		g.wg.Add(1)
-
-		go g.PerformTasks()
-	}
+	}()
 }
 
 func (g *Group) Wait() error {
-	close(g.tasks)
 	g.wg.Wait()
 
 	return context.Cause(g.ctx)
@@ -56,14 +70,6 @@ func (g *Group) Wait() error {
 
 func (g *Group) SetLimit(limit int) {
 	g.workersLimit = limit
-}
-
-func (g *Group) PerformTasks() {
-	defer g.wg.Done()
-
-	for task := range g.tasks {
-		task()
-	}
 }
 
 func TestErrGroupWithoutError(t *testing.T) {
@@ -81,7 +87,7 @@ func TestErrGroupWithoutError(t *testing.T) {
 	err := group.Wait()
 	assert.Equal(t, int32(5), counter.Load())
 	assert.NoError(t, err)
-	assert.Equal(t, 5, group.workersNumber)
+	assert.Equal(t, 5, group.maxWorkersNumber)
 }
 
 func TestErrGroupWithError(t *testing.T) {
@@ -110,7 +116,7 @@ func TestErrGroupWithError(t *testing.T) {
 	err := group.Wait()
 	assert.Equal(t, int32(0), counter.Load())
 	assert.Error(t, err)
-	assert.Equal(t, 6, group.workersNumber)
+	assert.Equal(t, 6, group.maxWorkersNumber)
 }
 
 func TestErrGroupWithoutErrorLimit(t *testing.T) {
@@ -129,5 +135,5 @@ func TestErrGroupWithoutErrorLimit(t *testing.T) {
 	err := group.Wait()
 	assert.Equal(t, int32(5), counter.Load())
 	assert.NoError(t, err)
-	assert.Equal(t, 3, group.workersNumber)
+	assert.Equal(t, 3, group.maxWorkersNumber)
 }
