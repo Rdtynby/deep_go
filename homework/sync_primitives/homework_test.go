@@ -10,63 +10,102 @@ import (
 )
 
 type RWMutex struct {
-	mutex     sync.Mutex
-	hasWriter atomic.Bool
-	readers   atomic.Int32
+	mutex          sync.Mutex
+	readCond       *sync.Cond
+	writeCond      *sync.Cond
+	hasWriter      bool
+	readers        int
+	waitingWriters int
+}
+
+func NewRWMutex() *RWMutex {
+	r := &RWMutex{}
+	r.readCond = sync.NewCond(&r.mutex)
+	r.writeCond = sync.NewCond(&r.mutex)
+
+	return r
 }
 
 func (m *RWMutex) Lock() {
-	m.hasWriter.Store(true)
 	m.mutex.Lock()
+	m.waitingWriters++
+
+	for m.hasWriter || m.readers > 0 {
+		m.writeCond.Wait()
+	}
+
+	m.waitingWriters--
+	m.hasWriter = true
+	m.mutex.Unlock()
 }
 
 func (m *RWMutex) Unlock() {
+	m.mutex.Lock()
+	m.hasWriter = false
+
+	if m.waitingWriters > 0 {
+		m.writeCond.Signal()
+	} else {
+		m.readCond.Broadcast()
+	}
+
 	m.mutex.Unlock()
-	m.hasWriter.Store(false)
 }
 
 func (m *RWMutex) RLock() {
-	m.readers.Add(1)
+	m.mutex.Lock()
 
-	if m.readers.Load() == 1 {
-		// It's the first reader, locking
-		m.mutex.Lock()
-	} else if m.hasWriter.Load() {
-		// Waiting for writer
-		m.mutex.Lock()
+	for m.hasWriter || m.waitingWriters > 0 {
+		m.readCond.Wait()
 	}
+
+	m.readers++
+	m.mutex.Unlock()
 }
 
 func (m *RWMutex) RUnlock() {
-	if m.readers.Load() == 1 {
-		// It's the last reader
-		m.mutex.Unlock()
+	m.mutex.Lock()
+	m.readers--
+
+	if m.readers == 0 && m.waitingWriters > 0 {
+		m.writeCond.Signal()
 	}
 
-	m.readers.Add(-1)
+	m.mutex.Unlock()
 }
 
 func (m *RWMutex) TryLock() bool {
-	m.hasWriter.Store(true)
-	return m.mutex.TryLock()
+	m.mutex.Lock()
+
+	if m.hasWriter || m.readers > 0 {
+		m.mutex.Unlock()
+
+		return false
+	}
+
+	m.hasWriter = true
+	m.mutex.Unlock()
+
+	return true
 }
 
 func (m *RWMutex) TryRLock() bool {
-	m.readers.Add(1)
+	m.mutex.Lock()
 
-	if m.readers.Load() == 1 {
-		// It's the first reader, locking
-		return m.mutex.TryLock()
-	} else if m.hasWriter.Load() {
-		// Waiting for writer
-		return m.mutex.TryLock()
+	if m.hasWriter {
+		m.mutex.Unlock()
+
+		return false
 	}
 
-	return false
+	m.readers++
+	m.mutex.Unlock()
+
+	return true
 }
 
 func TestRWMutexWithWriter(t *testing.T) {
-	var mutex RWMutex
+	mutex := NewRWMutex()
 	mutex.Lock() // writer
 
 	var mutualExlusionWithWriter atomic.Bool
@@ -90,7 +129,7 @@ func TestRWMutexWithWriter(t *testing.T) {
 }
 
 func TestRWMutexWithReaders(t *testing.T) {
-	var mutex RWMutex
+	mutex := NewRWMutex()
 	mutex.RLock() // reader
 
 	var mutualExlusionWithWriter atomic.Bool
@@ -106,7 +145,7 @@ func TestRWMutexWithReaders(t *testing.T) {
 }
 
 func TestRWMutexMultipleReaders(t *testing.T) {
-	var mutex RWMutex
+	mutex := NewRWMutex()
 	mutex.RLock() // reader
 
 	var readersCount atomic.Int32
@@ -127,7 +166,7 @@ func TestRWMutexMultipleReaders(t *testing.T) {
 }
 
 func TestRWMutexWithWriterPriority(t *testing.T) {
-	var mutex RWMutex
+	mutex := NewRWMutex()
 	mutex.RLock() // reader
 
 	var mutualExlusionWithWriter atomic.Bool
@@ -159,7 +198,7 @@ func TestRWMutexWithWriterPriority(t *testing.T) {
 }
 
 func TestTryRWMutexWithWriter(t *testing.T) {
-	var mutex RWMutex
+	mutex := NewRWMutex()
 	assert.True(t, mutex.TryLock())  // writer
 	assert.False(t, mutex.TryLock()) // writer
 
@@ -184,9 +223,9 @@ func TestTryRWMutexWithWriter(t *testing.T) {
 }
 
 func TestTryRWMutexWithReaders(t *testing.T) {
-	var mutex RWMutex
-	assert.True(t, mutex.TryRLock())  // reader
-	assert.False(t, mutex.TryRLock()) // reader
+	mutex := NewRWMutex()
+	assert.True(t, mutex.TryRLock()) // reader
+	assert.True(t, mutex.TryRLock()) // reader
 
 	var mutualExlusionWithWriter atomic.Bool
 	mutualExlusionWithWriter.Store(true)
