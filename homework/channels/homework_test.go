@@ -20,6 +20,7 @@ type Task struct {
 type WorkerPool struct {
 	tasks  chan Task
 	wg     sync.WaitGroup
+	mutex  sync.Mutex
 	closed bool
 }
 
@@ -40,6 +41,9 @@ func NewWorkerPool(workersNumber int) *WorkerPool {
 
 // Return an error if the pool is full
 func (wp *WorkerPool) AddTask(task func(), counter int) error {
+	wp.mutex.Lock()
+	defer wp.mutex.Unlock()
+
 	if wp.closed {
 		return fmt.Errorf("already closed")
 	}
@@ -60,13 +64,17 @@ func (wp *WorkerPool) AddTask(task func(), counter int) error {
 // Shutdown all workers and wait for all
 // tasks in the pool to complete
 func (wp *WorkerPool) Shutdown() {
+	wp.mutex.Lock()
+
 	if wp.closed {
 		return
 	}
 
 	close(wp.tasks)
-	wp.wg.Wait()
 	wp.closed = true
+	wp.mutex.Unlock()
+
+	wp.wg.Wait()
 }
 
 func (wp *WorkerPool) PerformTasks() {
